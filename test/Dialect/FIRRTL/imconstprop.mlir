@@ -542,3 +542,91 @@ firrtl.circuit "dntOutput" {
     firrtl.connect %b, %const : !firrtl.uint<3>, !firrtl.uint<3>
   }
 }
+
+// -----
+
+firrtl.circuit "VectorPropagation1" {
+  firrtl.module @VectorPropagation1(in %clock: !firrtl.clock, out %b: !firrtl.uint<1>) {
+    %c1_ui1 = firrtl.constant 1 : !firrtl.uint<1>
+    %r3 = firrtl.reg %clock  : !firrtl.vector<uint<1>, 2>
+    %0 = firrtl.subindex %r3[0] : !firrtl.vector<uint<1>, 2>
+    firrtl.connect %0, %c1_ui1 : !firrtl.uint<1>, !firrtl.uint<1>
+    %1 = firrtl.subindex %r3[1] : !firrtl.vector<uint<1>, 2>
+    firrtl.connect %1, %c1_ui1 : !firrtl.uint<1>, !firrtl.uint<1>
+    %2 = firrtl.xor %0, %1 : (!firrtl.uint<1>, !firrtl.uint<1>) -> !firrtl.uint<1>
+    firrtl.connect %b, %2 : !firrtl.uint<1>, !firrtl.uint<1>
+    // CHECK:      %c0_ui1 = firrtl.constant 0 : !firrtl.uint<1>
+    // CHECK-NEXT: firrtl.connect %b, %c0_ui1 : !firrtl.uint<1>, !firrtl.uint<1>
+  }
+}
+
+firrtl.circuit "VectorPropagation2" {
+  firrtl.module @VectorPropagation2(in %clock: !firrtl.clock, out %b1: !firrtl.uint<6>, out %b2: !firrtl.uint<6>, out %b3: !firrtl.uint<6>) {
+
+    // tmp1[0][0] <= 1
+    // tmp1[0][1] <= 2
+    // tmp1[1][0] <= 4
+    // tmp1[1][1] <= 8
+    // tmp1[2][0] <= 16
+    // tmp1[2][1] <= 32
+
+    // b1 <= tmp[0][0] xor tmp1[1][0] = 5
+    // b2 <= tmp[2][1] xor tmp1[0][1] = 34
+    // b3 <= tmp[1][1] xor tmp1[2][0] = 24
+
+    %c32_ui6 = firrtl.constant 32 : !firrtl.uint<6>
+    %c16_ui6 = firrtl.constant 16 : !firrtl.uint<6>
+    %c8_ui6 = firrtl.constant 8 : !firrtl.uint<6>
+    %c4_ui6 = firrtl.constant 4 : !firrtl.uint<6>
+    %c2_ui6 = firrtl.constant 2 : !firrtl.uint<6>
+    %c1_ui6 = firrtl.constant 1 : !firrtl.uint<6>
+    %tmp1 = firrtl.reg %clock  : !firrtl.vector<vector<uint<6>, 2>, 3>
+    %0 = firrtl.subindex %tmp1[0] : !firrtl.vector<vector<uint<6>, 2>, 3>
+    %1 = firrtl.subindex %0[0] : !firrtl.vector<uint<6>, 2>
+    firrtl.connect %1, %c1_ui6 : !firrtl.uint<6>, !firrtl.uint<6>
+    %2 = firrtl.subindex %0[1] : !firrtl.vector<uint<6>, 2>
+    firrtl.connect %2, %c2_ui6 : !firrtl.uint<6>, !firrtl.uint<6>
+    %3 = firrtl.subindex %tmp1[1] : !firrtl.vector<vector<uint<6>, 2>, 3>
+    %4 = firrtl.subindex %3[0] : !firrtl.vector<uint<6>, 2>
+    firrtl.connect %4, %c4_ui6 : !firrtl.uint<6>, !firrtl.uint<6>
+    %5 = firrtl.subindex %3[1] : !firrtl.vector<uint<6>, 2>
+    firrtl.connect %5, %c8_ui6 : !firrtl.uint<6>, !firrtl.uint<6>
+    %6 = firrtl.subindex %tmp1[2] : !firrtl.vector<vector<uint<6>, 2>, 3>
+    %7 = firrtl.subindex %6[0] : !firrtl.vector<uint<6>, 2>
+    firrtl.connect %7, %c16_ui6 : !firrtl.uint<6>, !firrtl.uint<6>
+    %8 = firrtl.subindex %6[1] : !firrtl.vector<uint<6>, 2>
+    firrtl.connect %8, %c32_ui6 : !firrtl.uint<6>, !firrtl.uint<6>
+    %9 = firrtl.xor %1, %4 : (!firrtl.uint<6>, !firrtl.uint<6>) -> !firrtl.uint<6>
+    firrtl.connect %b1, %9 : !firrtl.uint<6>, !firrtl.uint<6>
+    %10 = firrtl.xor %8, %2 : (!firrtl.uint<6>, !firrtl.uint<6>) -> !firrtl.uint<6>
+    firrtl.connect %b2, %10 : !firrtl.uint<6>, !firrtl.uint<6>
+    %11 = firrtl.xor %7, %5 : (!firrtl.uint<6>, !firrtl.uint<6>) -> !firrtl.uint<6>
+    firrtl.connect %b3, %11 : !firrtl.uint<6>, !firrtl.uint<6>
+    // CHECK:      %c5_ui6 = firrtl.constant 5 : !firrtl.uint<6>
+    // CHECK-NEXT: firrtl.connect %b1, %c5_ui6 : !firrtl.uint<6>, !firrtl.uint<6>
+    // CHECK-NEXT: %c34_ui6 = firrtl.constant 34 : !firrtl.uint<6>
+    // CHECK-NEXT: firrtl.connect %b2, %c34_ui6 : !firrtl.uint<6>, !firrtl.uint<6>
+    // CHECK-NEXT: %c24_ui6 = firrtl.constant 24 : !firrtl.uint<6>
+    // CHECK-NEXT: firrtl.connect %b3, %c24_ui6 : !firrtl.uint<6>, !firrtl.uint<6>
+  }
+}
+
+firrtl.circuit "BundlePropagation1"   {
+  firrtl.module @BundlePropagation1(in %clock: !firrtl.clock, out %result: !firrtl.uint<3>) {
+    %tmp = firrtl.reg %clock  : !firrtl.bundle<a: uint<3>, b: uint<3>, c: uint<3>>
+    %c1_ui3 = firrtl.constant 1 : !firrtl.uint<3>
+    %c2_ui3 = firrtl.constant 2 : !firrtl.uint<3>
+    %c4_ui3 = firrtl.constant 4 : !firrtl.uint<3>
+    %0 = firrtl.subfield %tmp(0) : (!firrtl.bundle<a: uint<3>, b: uint<3>, c: uint<3>>) -> !firrtl.uint<3>
+    %1 = firrtl.subfield %tmp(1) : (!firrtl.bundle<a: uint<3>, b: uint<3>, c: uint<3>>) -> !firrtl.uint<3>
+    %2 = firrtl.subfield %tmp(2) : (!firrtl.bundle<a: uint<3>, b: uint<3>, c: uint<3>>) -> !firrtl.uint<3>
+    firrtl.connect %0, %c1_ui3 : !firrtl.uint<3>, !firrtl.uint<3>
+    firrtl.connect %1, %c2_ui3 : !firrtl.uint<3>, !firrtl.uint<3>
+    firrtl.connect %2, %c4_ui3 : !firrtl.uint<3>, !firrtl.uint<3>
+    %3 = firrtl.xor %0, %1 : (!firrtl.uint<3>, !firrtl.uint<3>) -> !firrtl.uint<3>
+    %4 = firrtl.xor %3, %2 : (!firrtl.uint<3>, !firrtl.uint<3>) -> !firrtl.uint<3>
+    firrtl.connect %result, %4 : !firrtl.uint<3>, !firrtl.uint<3>
+    // CHECK:      %c7_ui3 = firrtl.constant 7 : !firrtl.uint<3>
+    // CHECK-NEXT: firrtl.connect %result, %c7_ui3 : !firrtl.uint<3>, !firrtl.uint<3>
+  }
+}
